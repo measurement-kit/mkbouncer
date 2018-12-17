@@ -10,6 +10,14 @@
 
 TEST_CASE("We can successfully contact the bouncer") {
   mkbouncer_request_uptr request{mkbouncer_request_new_nonnull()};
+  mkbouncer_request_set_nettest_name(request.get(), "web_connectivity");
+  mkbouncer_request_set_nettest_version(request.get(), "0.0.1");
+  mkbouncer_request_add_helper(
+      request.get(), mkbouncer_helper_tcp_echo());
+  mkbouncer_request_add_helper(
+      request.get(), mkbouncer_helper_http_return_json_headers());
+  mkbouncer_request_add_helper(
+      request.get(), mkbouncer_helper_web_connectivity());
   mkbouncer_response_uptr response{mkbouncer_request_perform_nonnull(
       request.get())};
   std::clog << "Good: "

@@ -30,6 +30,28 @@ void mkbouncer_request_set_ca_bundle_path(
 void mkbouncer_request_set_timeout(
     mkbouncer_request_t *request, int64_t timeout);
 
+/// mkbouncer_request_set_nettest_name sets the nettest name.
+void mkbouncer_request_set_nettest_name(
+    mkbouncer_request_t *request, const char *name);
+
+/// mkbouncer_request_set_nettest_version sets the nettest version.
+void mkbouncer_request_set_nettest_version(
+    mkbouncer_request_t *request, const char *version);
+
+/// mkbouncer_helper_web_connectivity returns the web connectivity helper name.
+const char *mkbouncer_helper_web_connectivity(void);
+
+/// mkbouncer_helper_tcp_echo returns the TCP echo helper name.
+const char *mkbouncer_helper_tcp_echo(void);
+
+/// mkbouncer_helper_http_return_json_headers returns the HTTP return
+/// JSON headers helper name.
+const char *mkbouncer_helper_http_return_json_headers(void);
+
+/// mkbouncer_request_add_helper adds a helper to the request.
+void mkbouncer_request_add_helper(
+    mkbouncer_request_t *request, const char *helper);
+
 /// mkbouncer_request_perform_nonnull performs @p request and returns
 /// the corresponding response.
 mkbouncer_response_t *mkbouncer_request_perform_nonnull(
@@ -135,8 +157,17 @@ struct mkbouncer_request {
   // ca_bundle_path is the CA bundle path.
   std::string ca_bundle_path;
 
+  // helpers contains the list of test helpers to request.
+  std::vector<std::string> helpers;
+
+  // name is the nettest name.
+  std::string name;
+
   // timeout is the timeout in seconds.
   int64_t timeout = 30;
+
+  // version is the nettest version.
+  std::string version;
 };
 
 mkbouncer_request_t *mkbouncer_request_new_nonnull() {
@@ -157,6 +188,42 @@ void mkbouncer_request_set_timeout(
     MKBOUNCER_ABORT();
   }
   request->timeout = timeout;
+}
+
+void mkbouncer_request_set_nettest_name(
+    mkbouncer_request_t *request, const char *name) {
+  if (request == nullptr || name == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  request->name = name;
+}
+
+void mkbouncer_request_set_nettest_version(
+    mkbouncer_request_t *request, const char *version) {
+  if (request == nullptr || version == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  request->version = version;
+}
+
+const char *mkbouncer_helper_web_connectivity() {
+  return "web-connectivity";
+}
+
+const char *mkbouncer_helper_tcp_echo() {
+  return "tcp-echo";
+}
+
+const char *mkbouncer_helper_http_return_json_headers() {
+  return "http-return-json-headers";
+}
+
+void mkbouncer_request_add_helper(
+    mkbouncer_request_t *request, const char *helper) {
+  if (request == nullptr || helper == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  request->helpers.push_back(helper);
 }
 
 // mkbouncer_record is a collector or test-helper record.
@@ -206,20 +273,12 @@ mkbouncer_response_t *mkbouncer_request_perform_nonnull(
     mkcurl_request_set_url_v2(curl_request.get(), url.c_str());
   }
   {
-    // Apparently the bouncer does not care about the test that we're running
-    // as this is a relic of the input-hashes era. Hence, don't create extra
-    // complexity by asking the caller to fill in the test name. Likewise don't
-    // bother with asking for the right test helper, just ask all of them, and
-    // let the caller decide what test helper they're interested to use.
     nlohmann::json doc;
     nlohmann::json nettest;
     nettest["input-hashes"] = nullptr;
-    nettest["name"] = "web_connectivity";
-    // These are all the test helpers that were ever used by MK.
-    nettest["test-helpers"].push_back("web-connectivity");
-    nettest["test-helpers"].push_back("http-return-json-headers");
-    nettest["test-helpers"].push_back("tcp-echo");
-    nettest["version"] = "0.0.1";
+    nettest["name"] = request->name;
+    nettest["test-helpers"] = request->helpers;
+    nettest["version"] = request->version;
     doc["net-tests"].push_back(std::move(nettest));
     std::string body;
     try {
