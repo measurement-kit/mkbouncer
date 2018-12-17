@@ -153,7 +153,6 @@ mkbouncer_response_t *mkbouncer_request_perform_nonnull(
     // bother with asking for the right test helper, just ask all of them, and
     // let the caller decide what test helper they're interested to use.
     nlohmann::json doc;
-    doc["version"] = "0.0.1";
     nlohmann::json nettest;
     nettest["input-hashes"] = nullptr;
     nettest["name"] = "web_connectivity";
@@ -161,6 +160,7 @@ mkbouncer_response_t *mkbouncer_request_perform_nonnull(
     nettest["test-helpers"].push_back("web-connectivity");
     nettest["test-helpers"].push_back("http-return-json-headers");
     nettest["test-helpers"].push_back("tcp-echo");
+    nettest["version"] = "0.0.1";
     doc["net-tests"].push_back(std::move(nettest));
     std::string body;
     try {
