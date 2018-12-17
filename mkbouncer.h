@@ -39,6 +39,44 @@ mkbouncer_response_t *mkbouncer_request_perform_nonnull(
 /// and false in case there was an error.
 int64_t mkbouncer_response_good(const mkbouncer_response_t *response);
 
+/// mkbouncer_response_get_collectors_size returns the number
+/// of collectors contained in @p response.
+size_t mkbouncer_response_get_collectors_size(
+    const mkbouncer_response_t *response);
+
+/// mkbouncer_response_get_collector_at returns the collector with the given
+/// @p index. The strings returned in @p type, @p address and @p front are
+/// always valid. They're set to the empty string when no specific value is
+/// actually available. This function aborts if passed any null pointer
+/// as well as if the @p index argument is out of bounds.
+void mkbouncer_response_get_collector_at(
+    const mkbouncer_response_t *response, size_t index, const char **type,
+    const char **address, const char **front);
+
+/// mkbouncer_response_get_testhelper_keys_size returns the number of
+/// test helper keys contained in @p response.
+size_t mkbouncer_response_get_testhelper_keys_size(
+    const mkbouncer_response_t *response);
+
+/// mkbouncer_response_get_testhelper_key_at returns the test helper key
+/// in @p response at index @p index. This functiona aborts if @p response
+/// is null as well as if @p index is out of bounds.
+const char *mkbouncer_response_get_testhelper_key_at(
+    const mkbouncer_response_t *response, size_t index);
+
+/// mkbouncer_response_get_testhelpers_size returns the number of records
+/// for the test helper identified by @p key.
+size_t mkbouncer_response_get_testhelpers_size(
+    const mkbouncer_response_t *response, const char *key);
+
+/// mkbouncer_response_get_testhelper_at returns the testhelper record
+/// for the test helper identified by @p key and at index @p index. This
+/// function aborts if passed null pointers and if @p index is out of bounds
+/// or if the @p key does not exist.
+void mkbouncer_response_get_testhelper_at(
+    const mkbouncer_response_t *response, const char *key, size_t index,
+    const char **type, const char **address, const char **front);
+
 /// mkbouncer_response_get_binary_logs returns the possibly non UTF-8 logs
 /// collected when sending the request and processing the response.
 void mkbouncer_response_get_binary_logs(const mkbouncer_response_t *response,
@@ -121,10 +159,31 @@ void mkbouncer_request_set_timeout(
   request->timeout = timeout;
 }
 
+// mkbouncer_record is a collector or test-helper record.
+struct mkbouncer_record {
+  // type is the record type.
+  std::string type;
+
+  // address is the record address.
+  std::string address;
+
+  // front is the front to use in case of domain fronting.
+  std::string front;
+};
+
 // mkbouncer_response is the private data of mkbouncer_response_t.
 struct mkbouncer_response {
   // good indicates whether we good a good response.
   int64_t good = false;
+
+  // collectors lists all available collectors.
+  std::vector<mkbouncer_record> collectors;
+
+  // helpers lists all available test-helpers.
+  std::map<std::string, std::vector<mkbouncer_record>> helpers;
+
+  // keys contains the keys in helpers.
+  std::vector<std::string> keys;
 
   // logs contains the possibly binary logs.
   std::string logs;
@@ -191,16 +250,49 @@ mkbouncer_response_t *mkbouncer_request_perform_nonnull(
     response->logs += "\n";
     try {
       nlohmann::json doc = nlohmann::json::parse(body);
-      // TODO(bassosimone): parse the body. This is a body sample:
-      //
-      // {"net-tests": [{"collector-alternate": [{"type": "https", "address": "https://c.collector.ooni.io:443"}, {"front": "a0.awsstatic.com", "type": "cloudfront", "address": "https://das0y2z2ribx3.cloudfront.net"}], "version": "0.0.1", "name": "web_connectivity", "test-helpers": {"web-connectivity": "httpo://y3zq5fwelrzkkv3s.onion"}, "test-helpers-alternate": {"web-connectivity": [{"type": "https", "address": "https://c.web-connectivity.th.ooni.io:443"}, {"front": "a0.awsstatic.com", "type": "cloudfront", "address": "https://d2vt18apel48hw.cloudfront.net"}]}, "collector": "httpo://42q7ug46dspcsvkw.onion", "input-hashes": null}]}
-      //
+      const nlohmann::json &net_tests = doc.at("net-tests")[0];
+      if (net_tests.count("collector") > 0) {
+        mkbouncer_record record;
+        record.address = net_tests.at("collector");
+        record.type = "onion";
+        response->collectors.push_back(std::move(record));
+      }
+      if (net_tests.count("collector-alternate") > 0) {
+        for (const nlohmann::json &e : net_tests.at("collector-alternate")) {
+          mkbouncer_record record;
+          record.address = e.at("address");
+          record.type = e.at("type");
+          if (e.count("front") > 0) record.front = e.at("front");
+          response->collectors.push_back(std::move(record));
+        }
+      }
+      if (net_tests.count("test-helpers") > 0) {
+        for (auto &e : net_tests.at("test-helpers").items()) {
+          mkbouncer_record record;
+          record.address = e.value();
+          response->helpers[e.key()].push_back(std::move(record));
+        }
+      }
+      if (net_tests.count("test-helpers-alternate") > 0) {
+        for (auto &e : net_tests.at("test-helpers-alternate").items()) {
+          for (auto &v : e.value()) {
+            mkbouncer_record record;
+            record.address = v.at("address");
+            record.type = v.at("type");
+            if (v.count("front") > 0) {
+              record.front = v.at("front");
+            }
+            response->helpers[e.key()].push_back(std::move(record));
+          }
+        }
+      }
     } catch (const std::exception &exc) {
       response->logs += exc.what();
       response->logs += "\n";
       return response.release();
     }
   }
+  for (auto &pair : response->helpers) response->keys.push_back(pair.first);
   response->good = true;
   return response.release();
 }
@@ -210,6 +302,74 @@ int64_t mkbouncer_response_good(const mkbouncer_response_t *response) {
     MKBOUNCER_ABORT();
   }
   return response->good;
+}
+
+size_t mkbouncer_response_get_collectors_size(
+    const mkbouncer_response_t *response) {
+  if (response == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  return response->collectors.size();
+}
+
+void mkbouncer_response_get_collector_at(
+    const mkbouncer_response_t *response, size_t index, const char **type,
+    const char **address, const char **front) {
+  if (response == nullptr || type == nullptr || address == nullptr ||
+      front == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  if (index >= response->collectors.size()) {
+    MKBOUNCER_ABORT();
+  }
+  const mkbouncer_record &record = response->collectors[index];
+  *type = record.type.c_str();
+  *address = record.address.c_str();
+  *front = record.front.c_str();
+}
+
+size_t mkbouncer_response_get_testhelper_keys_size(
+    const mkbouncer_response_t *response) {
+  if (response == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  return response->keys.size();
+}
+
+const char *mkbouncer_response_get_testhelper_key_at(
+    const mkbouncer_response_t *response, size_t index) {
+  if (response == nullptr || index >= response->keys.size()) {
+    MKBOUNCER_ABORT();
+  }
+  return response->keys[index].c_str();
+}
+
+size_t mkbouncer_response_get_testhelpers_size(
+    const mkbouncer_response_t *response, const char *key) {
+  if (response == nullptr || key == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  if (response->helpers.count(key) <= 0) {
+    return 0;
+  }
+  return response->helpers.at(key).size();
+}
+
+void mkbouncer_response_get_testhelper_at(
+    const mkbouncer_response_t *response, const char *key, size_t index,
+    const char **type, const char **address, const char **front) {
+  if (response == nullptr || key == nullptr || type == nullptr ||
+      address == nullptr || front == nullptr) {
+    MKBOUNCER_ABORT();
+  }
+  if (response->helpers.count(key) <= 0 ||
+      index >= response->helpers.at(key).size()) {
+    MKBOUNCER_ABORT();
+  }
+  const mkbouncer_record &record = response->helpers.at(key)[index];
+  *type = record.type.c_str();
+  *address = record.address.c_str();
+  *front = record.front.c_str();
 }
 
 void mkbouncer_response_get_binary_logs(const mkbouncer_response_t *response,
