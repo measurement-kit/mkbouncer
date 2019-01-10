@@ -83,9 +83,15 @@ Response perform(const Request &request) noexcept;
 
 #include <sstream>
 
-#include "mkcurl.hpp"
-
 #include "json.hpp"
+#include "mkcurl.hpp"
+#include "mkmock.hpp"
+
+#ifdef MKBOUNCER_MOCK
+#define MKBOUNCER_HOOK MKMOCK_HOOK_ENABLED
+#else
+#define MKBOUNCER_HOOK MKMOCK_HOOK_DISABLED
+#endif
 
 namespace mk {
 namespace bouncer {
@@ -131,9 +137,12 @@ Response perform(const Request &request) noexcept {
   for (auto &entry : curl_response.logs) {
     response.logs.push_back(std::move(entry.line));
   }
+  MKBOUNCER_HOOK(curl_response_error, curl_response.error);
+  MKBOUNCER_HOOK(curl_response_status_code, curl_response.status_code);
   if (curl_response.error != 0 || curl_response.status_code != 200) {
     return response;
   }
+  MKBOUNCER_HOOK(curl_response_body, curl_response.body);
   {
     log_body("Response", curl_response.body, response.logs);
     try {
