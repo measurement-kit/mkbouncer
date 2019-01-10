@@ -1,0 +1,13 @@
+/CMakeCache.txt
+/CMakeFiles/
+/CTestTestfile.cmake
+/Makefile
+/ca-bundle.pem
+/catch.hpp
+/cmake_install.cmake
+/integration-tests
+/json.hpp
+/libmkbouncer.a
+/mkcurl.hpp
+/mkmock.hpp
+/tests
