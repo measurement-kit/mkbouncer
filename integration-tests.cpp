@@ -10,7 +10,7 @@
 
 TEST_CASE("We can successfully contact the bouncer") {
   mk::bouncer::Request request;
-  request.ca_bundle_path = "ca-bundle.pem";
+  request.ca_bundle_path = ".mkbuild/data/cacert.pem";
   request.name = "web_connectivity";
   request.version = "0.0.1";
   request.timeout = 7;
@@ -50,4 +50,5 @@ TEST_CASE("We can successfully contact the bouncer") {
   }
   std::clog << "=== END HELPERS ==="
             << std::endl;
+  REQUIRE(response.good == true);
 }
