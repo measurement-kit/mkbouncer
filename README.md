@@ -5,3 +5,28 @@
 Basic Measurement Kit building block implementing the OONI bouncer. The
 use case is to vendor this into MK sources. As this is an internal-like
 building block, we don't provide stable API guarantees.
+
+## Regenerating build files
+
+Possibly edit `MKBuild.yaml`, then run:
+
+```
+go get -v github.com/measurement-kit/mkbuild
+mkbuild
+```
+
+## Building
+
+```
+mkdir build
+cd build
+cmake -GNinja ..
+cmake --build .
+ctest -a -j8 --output-on-failure
+```
+
+## Testing with docker
+
+```
+./docker.sh <build-type>
+```
