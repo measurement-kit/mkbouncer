@@ -20,9 +20,9 @@
 
 /// MKBOUNCER_INLINE_NAMESPACE controls the inline inner namespace in which
 /// public symbols exported by this library are enclosed.
-#ifndef MKBOUNCER_INLINE_NAMESPACE
+///
+/// See <https://github.com/measurement-kit/measurement-kit/issues/1867#issuecomment-514562622>.
 #define MKBOUNCER_INLINE_NAMESPACE v0_1_1_or_greater
-#endif
 
 namespace mk {
 namespace bouncer {
