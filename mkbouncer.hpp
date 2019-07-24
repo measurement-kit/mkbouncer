@@ -18,8 +18,15 @@
 /// a JSON structure containing the received HTTP headers
 #define MKBOUNCER_HELPER_HTTP_RETURN_JSON_HEADERS "http-return-json-headers"
 
+/// MKBOUNCER_INLINE_NAMESPACE controls the inline inner namespace in which
+/// public symbols exported by this library are enclosed.
+///
+/// See <https://github.com/measurement-kit/measurement-kit/issues/1867#issuecomment-514562622>.
+#define MKBOUNCER_INLINE_NAMESPACE v0_1_1_or_greater
+
 namespace mk {
 namespace bouncer {
+inline namespace MKBOUNCER_INLINE_NAMESPACE {
 
 /// Request is a bouncer request
 class Request {
@@ -75,6 +82,7 @@ class Response {
 /// perform performs @p request and returns a Response.
 Response perform(const Request &request) noexcept;
 
+}  // inline namespace MKBOUNCER_INLINE_NAMESPACE
 }  // namespace bouncer
 }  // namespace mk
 
@@ -95,6 +103,7 @@ Response perform(const Request &request) noexcept;
 
 namespace mk {
 namespace bouncer {
+inline namespace MKBOUNCER_INLINE_NAMESPACE {
 
 // log_body is a helper to log about a body.
 static void log_body(const std::string &prefix, const std::string &body,
@@ -194,6 +203,7 @@ Response perform(const Request &request) noexcept {
   return response;
 }
 
+}  // inline namespace MKBOUNCER_INLINE_NAMESPACE
 }  // namespace bouncer
 }  // namespace mk
 #endif  // MKBOUNCER_INLINE_IMPL
