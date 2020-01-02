@@ -33,20 +33,23 @@ const uint8_t binary_input[] = {
 // clang-format on
 
 TEST_CASE("curl_reason_for_failure works") {
-  mk::curl::Response response;
   SECTION("With a real curl error") {
+    mk::curl::Response response;
     response.error = CURLE_AGAIN;
     std::string v = mk::bouncer::curl_reason_for_failure(response);
     REQUIRE(v == "bouncer: Socket not ready for send/recv");
   }
   SECTION("With an HTTP error") {
+    mk::curl::Response response;
     response.status_code = 404;
     std::string v = mk::bouncer::curl_reason_for_failure(response);
     REQUIRE(v == "bouncer: HTTP response code said error");
   }
-  SECTION("With an HTTP error") {
+  SECTION("With an unexpected error") {
+    mk::curl::Response response;
+    response.status_code = 200;
     std::string v = mk::bouncer::curl_reason_for_failure(response);
-    REQUIRE(v == "bouncer: HTTP response code said error");
+    REQUIRE(v == "bouncer: unknown libcurl error");
   }
 }
 
